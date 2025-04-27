@@ -176,8 +176,8 @@ describe('mitt#', () => {
 		it('should NOT ignore case', () => {
 			const onFoo = spy(),
 				onFOO = spy();
-			events.set('Foo', [onFoo]);
-			events.set('FOO', [onFOO]);
+			events.set('Foo', [{ fn: onFoo }]);
+			events.set('FOO', [{ fn: onFOO }]);
 
 			inst.emit('Foo', 'Foo arg');
 			inst.emit('FOO', 'FOO arg');
@@ -191,7 +191,7 @@ describe('mitt#', () => {
 				ea = { a: 'a' },
 				eb = { b: 'b' };
 
-			events.set('*', [star]);
+			events.set('*', [{ fn: star }]);
 
 			inst.emit('foo', ea);
 			expect(star).to.have.been.calledOnce.and.calledWith('foo', ea);
