@@ -8,7 +8,7 @@ export type WildcardHandler<T = Record<string, unknown>> = (
 	event: T[keyof T]
 ) => void;
 
-export type HandlerListItem<T> = { fn: T, ctx?: any, once?: boolean };
+export type HandlerListItem<T> = { fn: T, ctx?: any, once?: boolean } | T;
 
 // An array of all currently registered event handlers for a type
 export type EventHandlerList<T = unknown> = Array<HandlerListItem<Handler<T>>>;
@@ -71,12 +71,8 @@ export default function mitt<Events extends Record<EventType, unknown>>(
 		 * @memberOf mitt
 		 */
 		on<Key extends keyof Events>(type: Key, handler: GenericEventHandler, context?: any, once?: boolean) {
-			const handlers: Array<{
-				fn: GenericEventHandler,
-				ctx?: any,
-				once?: boolean
-			}> | undefined = all!.get(type);
-			const _handler = {
+			const handlers: Array<HandlerListItem<GenericEventHandler>> | undefined = all!.get(type);
+			const _handler: HandlerListItem<GenericEventHandler> = (!context && !once) ? handler : {
 				fn: handler,
 				ctx: context,
 				once
@@ -100,7 +96,7 @@ export default function mitt<Events extends Record<EventType, unknown>>(
 			const handlers: Array<HandlerListItem<GenericEventHandler>> | undefined = all!.get(type);
 			if (handlers) {
 				if (handler) {
-					handlers.splice(handlers.findIndex(item => item.fn === handler && item.ctx === context ) >>> 0, 1);
+					handlers.splice(handlers.findIndex(item => item === handler || ('fn' in item && item.fn === handler && item.ctx === context)) >>> 0, 1);
 				} else {
 					all!.set(type, []);
 				}
@@ -123,7 +119,14 @@ export default function mitt<Events extends Record<EventType, unknown>>(
 				(handlers as EventHandlerList<Events[keyof Events]>)
 					.slice()
 					.map((handlerListItem) => {
-						const { fn, once, ctx } = handlerListItem;
+						let fn: Handler<Events[keyof Events]>, once = false, ctx;
+						if (typeof handlerListItem === 'function') {
+							fn = handlerListItem;
+						} else {
+							fn = handlerListItem.fn;
+							once = !!handlerListItem.once;
+							ctx = handlerListItem.ctx;
+						}
 						fn.call(ctx, evt!);
 						if (once) {
 							this.off(type, fn, ctx);
@@ -136,7 +139,14 @@ export default function mitt<Events extends Record<EventType, unknown>>(
 				(handlers as WildCardEventHandlerList<Events>)
 					.slice()
 					.map((handlerListItem) => {
-						const { fn, once, ctx } = handlerListItem;
+						let fn: WildcardHandler<Events>, once = false, ctx;
+						if (typeof handlerListItem === 'function') {
+							fn = handlerListItem;
+						} else {
+							fn = handlerListItem.fn;
+							once = !!handlerListItem.once;
+							ctx = handlerListItem.ctx;
+						}
 						fn.call(ctx, type, evt!);
 						if (once) {
 							this.off('*', fn, ctx);
